@@ -9,44 +9,140 @@ export const dynamic = 'force-dynamic';
 export default async function Home() {
   await ensureSchema();
 
-  const s = (await pool.query('SELECT * FROM site_settings WHERE id=1')).rows[0] || {};
-  const cs = (await pool.query('SELECT * FROM campaigns WHERE active=true ORDER BY id DESC LIMIT 12')).rows;
-  const stories = (await pool.query('SELECT * FROM stories WHERE active=true ORDER BY sort_order, id').catch(() => ({ rows: [] }))).rows;
-  const stats = (await pool.query('SELECT * FROM impact_stats WHERE active=true ORDER BY sort_order, id').catch(() => ({ rows: [] }))).rows;
-  const carousel = (await pool.query('SELECT * FROM carousel_items WHERE active=true ORDER BY sort_order, id').catch(() => ({ rows: [] }))).rows;
-  const presets = (await pool.query('SELECT * FROM donation_presets WHERE active=true ORDER BY sort_order, id').catch(() => ({ rows: [] }))).rows;
+  const s =
+    (await pool.query('SELECT * FROM site_settings WHERE id=1'))
+      .rows[0] || {};
+
+  const cs = (
+    await pool.query(
+      'SELECT * FROM campaigns WHERE active=true ORDER BY id DESC LIMIT 12'
+    )
+  ).rows;
+
+  const stories = (
+    await pool
+      .query(
+        'SELECT * FROM stories WHERE active=true ORDER BY sort_order, id'
+      )
+      .catch(() => ({ rows: [] }))
+  ).rows;
+
+  const stats = (
+    await pool
+      .query(
+        'SELECT * FROM impact_stats WHERE active=true ORDER BY sort_order, id'
+      )
+      .catch(() => ({ rows: [] }))
+  ).rows;
+
+  const carousel = (
+    await pool
+      .query(
+        'SELECT * FROM carousel_items WHERE active=true ORDER BY sort_order, id'
+      )
+      .catch(() => ({ rows: [] }))
+  ).rows;
+
+  const presets = (
+    await pool
+      .query(
+        'SELECT * FROM donation_presets WHERE active=true ORDER BY sort_order, id'
+      )
+      .catch(() => ({ rows: [] }))
+  ).rows;
 
   const primary = (s.primary_color || '#1a4d42').trim();
   const colorHeader = (s.color_header || primary).trim();
   const colorFooter = (s.color_footer || primary).trim();
   const colorButton = (s.color_button || primary).trim();
-  const colorButtonText = (s.color_button_text || '#ffffff').trim();
+  const colorButtonText = (
+    s.color_button_text || '#ffffff'
+  ).trim();
+
+  const siteName =
+    s.site_name || 'Associação Beneficente Manancial';
+
+  const bannerUrl = s.hero_image || '';
 
   return (
-    <div>
+    <div className="abm-site">
       <style>{`
-        :root, body {
-          --verde: ${primary} !important;
-          --verde-medio: ${primary} !important;
-          --verde-escuro: ${colorHeader} !important;
+        :root {
+          --verde: ${primary};
+          --verde-medio: ${primary};
+          --verde-escuro: ${colorHeader};
+        }
+
+        .abm-site {
+          width: 100%;
+          max-width: 100%;
+          overflow-x: clip;
+        }
+
+        .abm-site *,
+        .abm-site *::before,
+        .abm-site *::after {
+          box-sizing: border-box;
+        }
+
+        .abm-site img {
+          max-width: 100%;
         }
 
         .site-header {
-          background: ${colorHeader}ee !important;
+          background: ${colorHeader} !important;
           border-bottom-color: ${colorHeader}22 !important;
+          width: 100%;
+          height: auto !important;
+          min-height: 74px;
+          z-index: 100;
         }
 
-        .site-header .logo,
+        .site-header .nav {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 24px;
+          min-height: 74px;
+        }
+
+        .site-header .logo {
+          display: inline-flex;
+          align-items: center;
+          flex-shrink: 0;
+          color: #ffffff !important;
+          font-family: Georgia, serif;
+          font-size: clamp(17px, 1.65vw, 23px);
+          font-weight: 600;
+          line-height: 1.25;
+          text-decoration: none;
+        }
+
         .site-header .logo span {
-          color: #fff !important;
+          color: #ffffff !important;
+        }
+
+        .site-header .nav-links {
+          display: flex;
+          align-items: center;
+          gap: 28px;
+          margin: 0;
+          padding: 0;
+          list-style: none;
         }
 
         .site-header .nav-links a {
           color: rgba(255,255,255,0.85) !important;
+          text-decoration: none;
         }
 
         .site-header .nav-links a:hover {
-          color: #fff !important;
+          color: #ffffff !important;
+        }
+
+        .site-header .nav > .btn {
+          flex-shrink: 0;
+          white-space: nowrap;
         }
 
         .btn-primary {
@@ -68,7 +164,6 @@ export default async function Home() {
           color: ${colorButtonText} !important;
         }
 
-        .logo span,
         .hero h1,
         .section-header h2,
         .about-content h2,
@@ -86,6 +181,89 @@ export default async function Home() {
           color: ${primary} !important;
         }
 
+        .hero-badge {
+          border-color: ${primary}33 !important;
+        }
+
+        /* HERO RESPONSIVO */
+
+        .abm-site .hero-grid {
+          display: grid;
+          grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 0.9fr);
+          align-items: center;
+          gap: clamp(24px, 4vw, 64px);
+        }
+
+        .abm-site .hero-grid > * {
+          min-width: 0;
+        }
+
+        .abm-site .hero-card {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          overflow: hidden;
+        }
+
+        .abm-site .hero-card-image {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: auto !important;
+          min-height: 0 !important;
+          aspect-ratio: auto !important;
+          overflow: hidden;
+          border-radius: 16px;
+          background: #f0f4f1;
+          background-image: none !important;
+        }
+
+        .abm-site .hero-banner {
+          display: block;
+          width: 100%;
+          height: auto;
+          max-width: 100%;
+          object-fit: contain;
+          object-position: center;
+          border-radius: 16px;
+        }
+
+        .abm-site .hero-card-image-empty {
+          width: 100%;
+          min-height: 220px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 54px;
+        }
+
+        .abm-site .hero-card h3 {
+          margin-top: 20px;
+        }
+
+        .abm-site .hero-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 14px;
+        }
+
+        .abm-site .hero-stats {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 18px;
+        }
+
+        .abm-site .stat {
+          min-width: 0;
+        }
+
+        .abm-site .stat span {
+          overflow-wrap: anywhere;
+        }
+
         .stories {
           background: ${primary} !important;
         }
@@ -98,124 +276,205 @@ export default async function Home() {
           ) !important;
         }
 
-        footer {
-          background: ${colorFooter} !important;
+        .abm-site .donate-box {
+          max-width: 100%;
+          min-width: 0;
+        }
+
+        .abm-site .donate-box input,
+        .abm-site .donate-box textarea,
+        .abm-site .donate-box select {
+          max-width: 100%;
+          min-width: 0;
         }
 
         .impact-card {
           background: ${primary}14 !important;
         }
 
-        .hero-badge {
-          border-color: ${primary}33 !important;
+        footer {
+          background: ${colorFooter} !important;
         }
 
-        /* BANNER RESPONSIVO */
+        /* TABLETS */
 
-        .hero-grid {
-          align-items: center;
-        }
-
-        .hero-grid > * {
-          min-width: 0;
-        }
-
-        .hero-card {
-          min-width: 0;
-          box-sizing: border-box;
-        }
-
-        .hero-card-image-fixed {
-          display: block;
-          width: 100%;
-          height: auto;
-          overflow: hidden;
-          border-radius: 16px;
-          background: #ffffff;
-        }
-
-        .hero-banner-img {
-          display: block;
-          width: 100%;
-          height: auto;
-          max-width: 100%;
-          object-fit: contain;
-          object-position: center;
-        }
-
-        .hero-placeholder {
-          min-height: 220px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 60px;
-        }
-
-        /* CABEÇALHO E BANNER NO CELULAR */
-
-        @media (max-width: 768px) {
-          .site-header .nav {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            min-height: 72px;
-            height: auto;
-            padding-top: 10px;
-            padding-bottom: 10px;
-            box-sizing: border-box;
-          }
-
-          .site-header .logo {
-            display: block;
-            flex: 1 1 0;
-            min-width: 0;
-            max-width: 100%;
-            font-size: 16px;
-            line-height: 1.25;
-            overflow-wrap: break-word;
-          }
-
-          .site-header .nav > .btn {
-            flex: 0 0 auto;
-            white-space: nowrap;
-            padding: 12px 16px;
-            font-size: 13px;
-          }
-
+        @media (max-width: 1024px) {
           .site-header .nav-links {
-            display: none;
+            gap: 14px;
           }
 
-          .hero-grid {
-            display: grid;
+          .abm-site .hero-grid {
             grid-template-columns: minmax(0, 1fr);
             gap: 32px;
           }
 
-          .hero-card {
+          .abm-site .hero-card {
+            max-width: 720px;
+            margin: 0 auto;
+          }
+        }
+
+        /* CELULARES */
+
+        @media (max-width: 768px) {
+          .site-header {
+            min-height: 68px !important;
+          }
+
+          .site-header .nav {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            flex-wrap: nowrap !important;
+            gap: 12px !important;
+            min-height: 68px !important;
+            height: auto !important;
+            padding-top: 12px !important;
+            padding-bottom: 12px !important;
+          }
+
+          .site-header .logo {
+            display: block !important;
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+            max-width: 100%;
+            font-size: 0 !important;
+            line-height: 1 !important;
+            white-space: nowrap !important;
+            overflow: hidden;
+          }
+
+          .site-header .logo::after {
+            content: "Manancial";
+            display: inline-block;
+            font-family: Georgia, serif;
+            font-size: 24px;
+            font-weight: 600;
+            line-height: 1.2;
+            color: #ffffff;
+          }
+
+          .site-header .logo span {
+            display: none !important;
+          }
+
+          .site-header .nav-links {
+            display: none !important;
+          }
+
+          .site-header .nav > .btn {
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto !important;
+            width: auto !important;
+            max-width: 45%;
+            min-height: 44px;
+            margin: 0 !important;
+            padding: 11px 18px !important;
+            font-size: 13px !important;
+            line-height: 1.2;
+            white-space: nowrap !important;
+          }
+
+          .abm-site .hero {
+            padding-top: 40px;
+            padding-bottom: 48px;
+          }
+
+          .abm-site .hero-grid {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) !important;
+            gap: 32px !important;
+          }
+
+          .abm-site .hero h1 {
+            font-size: clamp(32px, 8vw, 44px);
+            line-height: 1.12;
+            overflow-wrap: break-word;
+          }
+
+          .abm-site .hero-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+          }
+
+          .abm-site .hero-actions .btn {
+            display: flex;
             width: 100%;
             max-width: 100%;
-            min-width: 0;
+            justify-content: center;
+            text-align: center;
+          }
+
+          .abm-site .hero-stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 22px 16px;
+            margin-top: 30px;
+          }
+
+          .abm-site .hero-stats .stat:first-child {
+            grid-column: 1 / -1;
+          }
+
+          .abm-site .hero-card {
+            width: 100%;
+            max-width: 100%;
+            padding: 18px;
+            margin: 0;
+          }
+
+          .abm-site .hero-card-image {
+            width: 100%;
+            height: auto !important;
+            aspect-ratio: auto !important;
+          }
+
+          .abm-site .hero-banner {
+            width: 100%;
+            height: auto !important;
+            object-fit: contain !important;
+            object-position: center !important;
+          }
+
+          .abm-site .hero-card h3 {
+            font-size: 19px;
+            line-height: 1.4;
+          }
+
+          .abm-site .hero-card p {
+            font-size: 15px;
+            line-height: 1.65;
+          }
+
+          .abm-site .donate-box {
+            width: 100%;
+            padding: 0;
+          }
+
+          .abm-site .donate-box * {
             box-sizing: border-box;
           }
 
-          .hero-card-image-fixed {
-            width: 100%;
-            height: auto;
+          .abm-site .footer-grid {
+            grid-template-columns: minmax(0, 1fr);
+          }
+        }
+
+        @media (max-width: 360px) {
+          .site-header .logo::after {
+            font-size: 21px;
           }
 
-          .hero-banner-img {
-            width: 100%;
-            height: auto;
-            max-width: 100%;
-            object-fit: contain;
-            object-position: center;
+          .site-header .nav > .btn {
+            padding: 10px 13px !important;
+            font-size: 12px !important;
           }
 
-          .hero h1 {
-            overflow-wrap: break-word;
+          .abm-site .hero-card {
+            padding: 12px;
           }
         }
       `}</style>
@@ -224,9 +483,9 @@ export default async function Home() {
       <header className="site-header">
         <div className="container nav">
           <a href="/" className="logo">
-            {s.site_name?.split(' ')[0] || 'Associação'}{' '}
+            {siteName.split(' ')[0]}{' '}
             <span>
-              {s.site_name?.split(' ').slice(1).join(' ') || 'Manancial'}
+              {siteName.split(' ').slice(1).join(' ')}
             </span>
           </a>
 
@@ -270,7 +529,10 @@ export default async function Home() {
             </p>
 
             <div className="hero-actions">
-              <a href="#doar" className="btn btn-primary btn-lg">
+              <a
+                href="#doar"
+                className="btn btn-primary btn-lg"
+              >
                 {s.button_text || 'Fazer uma doação agora'}
               </a>
 
@@ -296,26 +558,28 @@ export default async function Home() {
             )}
           </div>
 
-          {/* BANNER CORRIGIDO */}
           <div className="hero-card">
-            <div className="hero-card-image-fixed">
-              {s.hero_image ? (
+            <div className="hero-card-image">
+              {bannerUrl ? (
                 <img
-                  src={s.hero_image}
+                  src={bannerUrl}
                   alt="Banner da Associação Beneficente Manancial"
-                  className="hero-banner-img"
+                  className="hero-banner"
+                  loading="eager"
+                  decoding="async"
                 />
               ) : (
-                <div className="hero-placeholder">💚</div>
+                <div className="hero-card-image-empty">
+                  💚
+                </div>
               )}
             </div>
 
-            <h3>
-              Sua doação chega onde mais precisa
-            </h3>
+            <h3>Sua doação chega onde mais precisa</h3>
 
             <p>
-              Toda contribuição é registrada e destinada às ações da associação.
+              Toda contribuição é registrada e destinada
+              às ações da associação.
             </p>
           </div>
         </div>
@@ -328,7 +592,8 @@ export default async function Home() {
             <div className="section-header">
               <span className="label">Histórias reais</span>
               <h2>
-                {s.stories_title || 'Por trás de cada doação existe um rosto'}
+                {s.stories_title ||
+                  'Por trás de cada doação existe um rosto'}
               </h2>
               <p>{s.stories_subtitle}</p>
             </div>
@@ -370,7 +635,8 @@ export default async function Home() {
             <div className="section-header">
               <span className="label">Nosso impacto</span>
               <h2>
-                {s.impact_title || 'O que já construímos juntos'}
+                {s.impact_title ||
+                  'O que já construímos juntos'}
               </h2>
               <p>{s.impact_subtitle}</p>
             </div>
@@ -378,7 +644,9 @@ export default async function Home() {
             <div className="impact-grid">
               {stats.map((st: any) => (
                 <div className="impact-card" key={st.id}>
-                  <div className="impact-icon">{st.icon}</div>
+                  <div className="impact-icon">
+                    {st.icon}
+                  </div>
                   <strong>{st.value}</strong>
                   <span>{st.label}</span>
                 </div>
@@ -388,9 +656,12 @@ export default async function Home() {
         </section>
       )}
 
-      {/* GALERIA / CARROSSEL */}
+      {/* GALERIA */}
       {carousel.length > 0 && (
-        <section id="galeria" style={{ background: '#fafafa' }}>
+        <section
+          id="galeria"
+          style={{ background: '#fafafa' }}
+        >
           <div className="container">
             <div className="section-header">
               <span className="label">Galeria</span>
@@ -418,18 +689,27 @@ export default async function Home() {
         <section id="projetos">
           <div className="container">
             <div className="section-header">
-              <span className="label">Projetos ativos</span>
+              <span className="label">
+                Projetos ativos
+              </span>
               <h2>Nossos projetos</h2>
               <p>
-                Escolha um projeto específico ou faça uma contribuição geral.
+                Escolha um projeto específico ou faça uma
+                contribuição geral.
               </p>
             </div>
 
             <div className="campaigns-grid">
               {cs.map((c: any) => (
-                <article className="campaign-card" key={c.id}>
+                <article
+                  className="campaign-card"
+                  key={c.id}
+                >
                   {c.image_url && (
-                    <img src={c.image_url} alt={c.title} />
+                    <img
+                      src={c.image_url}
+                      alt={c.title}
+                    />
                   )}
 
                   <h3>{c.title}</h3>
@@ -438,13 +718,12 @@ export default async function Home() {
                   {c.target_cents && (
                     <p className="price">
                       Meta:{' '}
-                      {(Number(c.target_cents) / 100).toLocaleString(
-                        'pt-BR',
-                        {
-                          style: 'currency',
-                          currency: 'BRL',
-                        }
-                      )}
+                      {(
+                        Number(c.target_cents) / 100
+                      ).toLocaleString('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      })}
                     </p>
                   )}
                 </article>
@@ -459,9 +738,12 @@ export default async function Home() {
         <div className="container">
           <div className="section-header">
             <span className="label">Faça parte</span>
+
             <h2>
-              {s.donate_title || 'Sua generosidade transforma realidades'}
+              {s.donate_title ||
+                'Sua generosidade transforma realidades'}
             </h2>
+
             <p>{s.donate_subtitle}</p>
           </div>
 
@@ -481,16 +763,20 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* CTA */}
+      {/* CHAMADA FINAL */}
       <section className="cta-final">
         <div className="container">
           <h2>
-            {s.cta_title || 'O mundo muda quando alguém decide ajudar.'}
+            {s.cta_title ||
+              'O mundo muda quando alguém decide ajudar.'}
           </h2>
 
           <p>{s.cta_text}</p>
 
-          <a href="#doar" className="btn btn-primary btn-lg">
+          <a
+            href="#doar"
+            className="btn btn-primary btn-lg"
+          >
             Quero fazer parte dessa mudança
           </a>
         </div>
@@ -502,7 +788,7 @@ export default async function Home() {
           <div className="footer-grid">
             <div className="footer-brand">
               <a href="/" className="logo">
-                {s.site_name || 'Associação Manancial'}
+                {siteName}
               </a>
               <p>{s.footer_text}</p>
             </div>
@@ -559,8 +845,7 @@ export default async function Home() {
           </div>
 
           <div className="footer-bottom">
-            © {new Date().getFullYear()}{' '}
-            {s.site_name || 'Associação Manancial'}.
+            © {new Date().getFullYear()} {siteName}.
             Todos os direitos reservados.
           </div>
         </div>
