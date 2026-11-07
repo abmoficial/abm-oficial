@@ -6,7 +6,7 @@ import { unlink } from 'fs/promises';
 import path from 'path';
 import { pool } from '../../lib/db';
 import { KEY_RE, storageDir } from '../../lib/shopfiles';
-import { getAdmin, requireArea, login as doLogin, logout as doLogout } from '../../lib/auth';
+import { getAdmin, requireArea, requirePixConfirmationAdmin, login as doLogin, logout as doLogout } from '../../lib/auth';
 
 function checkOrigin(h: Headers) {
   const origin = h.get('origin') || '';
@@ -423,5 +423,35 @@ export async function markShopOrderPaid(fd: FormData) {
   );
   await pool.query('INSERT INTO audit_logs(actor_id,action,details) VALUES($1,$2,$3)', [a.id, 'shop.order.deliver', JSON.stringify({ id })]);
   revalidatePath('/loja');
+  revalidatePath('/admin');
+}
+
+/* ===== CONFIRMAÇÃO MANUAL DE DOAÇÃO PIX ===== */
+export async function confirmPixDonation(fd: FormData) {
+  const h = await headers();
+  const origin = h.get('origin');
+  const host = h.get('host');
+  if (origin && (!host || new URL(origin).host !== host)) throw Error('Origem não autorizada');
+  const admin = await requirePixConfirmationAdmin();
+  const id = Number(fd.get('id'));
+  if (!Number.isSafeInteger(id) || id <= 0) throw Error('Doação inválida');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const updated = await client.query(
+      `UPDATE contributions SET status='confirmed', confirmed_at=now()
+       WHERE id=$1 AND status='awaiting_manual_verification' RETURNING id, amount_cents, pix_txid`,
+      [id]
+    );
+    if (!updated.rowCount) throw Error('Doação não encontrada ou já processada');
+    await client.query(
+      'INSERT INTO audit_logs(actor_id,action,details) VALUES($1,$2,$3)',
+      [admin.id, 'pix.confirm', JSON.stringify({ contributionId: id, amountCents: updated.rows[0].amount_cents, txid: updated.rows[0].pix_txid })]
+    );
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally { client.release(); }
   revalidatePath('/admin');
 }

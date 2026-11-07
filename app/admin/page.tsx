@@ -7,7 +7,7 @@ import {
   addImpact, toggleImpact, deleteImpact,
   addCarousel, toggleCarousel, deleteCarousel,
   addPreset, togglePreset, deletePreset,
-  addShopProduct, updateShopProduct, toggleShopProduct, deleteShopProduct, markShopOrderPaid,
+  addShopProduct, updateShopProduct, toggleShopProduct, deleteShopProduct, markShopOrderPaid, confirmPixDonation,
 } from './actions';
 import StoryForm from './StoryForm';
 import CarouselForm from './CarouselForm';
@@ -35,7 +35,7 @@ export default async function Admin({
 
   const s = (await pool.query('SELECT * FROM site_settings WHERE id=1')).rows[0] || {};
   const campaigns = (await pool.query('SELECT * FROM campaigns ORDER BY id DESC')).rows;
-  const contributions = (await pool.query('SELECT * FROM contributions ORDER BY created_at DESC LIMIT 50')).rows;
+  const contributions = (await pool.query("SELECT * FROM contributions ORDER BY CASE WHEN status='awaiting_manual_verification' AND payment_reported THEN 0 WHEN status='awaiting_manual_verification' THEN 1 ELSE 2 END, created_at DESC LIMIT 100")).rows;
   const stories = (await pool.query('SELECT * FROM stories ORDER BY sort_order, id').catch(() => ({ rows: [] }))).rows;
   const stats = (await pool.query('SELECT * FROM impact_stats ORDER BY sort_order, id').catch(() => ({ rows: [] }))).rows;
   const carousel = (await pool.query('SELECT * FROM carousel_items ORDER BY sort_order, id').catch(() => ({ rows: [] }))).rows;
@@ -337,31 +337,23 @@ export default async function Admin({
 
         {tab === 'donations' && (
           <>
-            <h2 style={h2}>Solicitacoes PIX geradas</h2>
+            <h2 style={h2}>Doações Pix — conferência</h2>
+            <p className="muted" style={{ marginBottom: 18 }}>Avisos dos doadores não comprovam recebimento. Confirme somente após conferir valor e crédito no extrato bancário.</p>
             <div className="panel" style={{ overflowX: 'auto' }}>
               <table>
-                <thead>
-                  <tr>
-                    <th>Data</th>
-                    <th>Nome</th>
-                    <th>Valor</th>
-                    <th>Status</th>
-                    <th>TXID</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>Data</th><th>Nome</th><th>Valor</th><th>Situação</th><th>TXID</th><th>Ação</th></tr></thead>
                 <tbody>
                   {contributions.map((c: any) => (
                     <tr key={c.id}>
-                      <td>{new Date(c.created_at).toLocaleString('pt-BR')}</td>
+                      <td>{new Date(c.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</td>
                       <td>{c.donor_name || '—'}</td>
-                      <td>{(c.amount_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                      <td>{c.status}</td>
-                      <td className="small" style={{ fontFamily: 'monospace' }}>{c.pix_txid}</td>
+                      <td>{(Number(c.amount_cents) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                      <td>{c.status === 'confirmed' ? '✓ Confirmado' : c.status === 'cancelled' ? 'Cancelado' : c.payment_reported ? '🔔 Doador informou pagamento' : 'Pix gerado — aguardando'}{c.payment_reported_at && <div className="small muted">Aviso: {new Date(c.payment_reported_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</div>}</td>
+                      <td className="small" style={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>{c.pix_txid}</td>
+                      <td>{a.role === 'admin' && c.status === 'awaiting_manual_verification' ? <form action={confirmPixDonation}><input type="hidden" name="id" value={c.id} /><button className="btn btn-primary" type="submit" style={{ padding: '8px 12px', fontSize: 13 }}>Confirmar após conferir extrato</button></form> : '—'}</td>
                     </tr>
                   ))}
-                  {contributions.length === 0 && (
-                    <tr><td colSpan={5} className="muted">Nenhuma solicitacao ainda.</td></tr>
-                  )}
+                  {contributions.length === 0 && <tr><td colSpan={6} className="muted">Nenhuma solicitação ainda.</td></tr>}
                 </tbody>
               </table>
             </div>
