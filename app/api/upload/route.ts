@@ -107,7 +107,11 @@ export async function POST(req: Request) {
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('Erro no Supabase Storage:', response.status, error);
+      console.error(
+        'Erro no Supabase Storage:',
+        response.status,
+        error
+      );
       throw new Error('Falha ao armazenar imagem');
     }
 
@@ -121,16 +125,29 @@ export async function POST(req: Request) {
         `INSERT INTO media
           (url, original_name, mime_type, size_bytes, uploaded_by)
          VALUES ($1, $2, $3, $4, $5)`,
-        [url, file.name.slice(0, 200), file.type, file.size, a.id]
+        [
+          url,
+          file.name.slice(0, 200),
+          file.type,
+          file.size,
+          a.id,
+        ]
       );
 
       await pool.query(
         `INSERT INTO audit_logs (actor_id, action, details)
          VALUES ($1, $2, $3)`,
-        [a.id, 'media.upload', JSON.stringify({ url })]
+        [
+          a.id,
+          'media.upload',
+          JSON.stringify({ url }),
+        ]
       );
     } catch (dbError) {
-      console.error('Erro ao registrar upload:', dbError);
+      console.error(
+        'Erro ao registrar upload:',
+        dbError
+      );
       throw dbError;
     }
 

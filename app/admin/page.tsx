@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getAdmin } from '../../lib/auth';
+import { getAdmin, canAccess } from '../../lib/auth';
 import { pool } from '../../lib/db';
 import {
   addCampaign, toggleCampaign, deleteCampaign, logout,
@@ -15,6 +15,9 @@ import SiteForm from './SiteForm';
 import CampaignForm from './CampaignForm';
 import ImpactCard from './ImpactCard';
 import ShopProductForm from './ShopProductForm';
+import TeamPanel from './TeamPanel';
+import { updateOwnProfile } from './team-actions';
+import FinanceDashboard from './FinanceDashboard';
 import { ensureSchema } from '../../lib/schema';
 
 export const dynamic = 'force-dynamic';
@@ -24,11 +27,11 @@ export default async function Admin({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
+  await ensureSchema();
   const a = await getAdmin();
   if (!a) redirect('/login');
-  await ensureSchema();
   const sp = await searchParams;
-  const tab = sp.tab || 'dashboard';
+  const tab = sp.tab || (a.role === 'admin' ? 'dashboard' : 'site');
 
   const s = (await pool.query('SELECT * FROM site_settings WHERE id=1')).rows[0] || {};
   const campaigns = (await pool.query('SELECT * FROM campaigns ORDER BY id DESC')).rows;
@@ -55,11 +58,13 @@ export default async function Admin({
       .catch(() => ({ rows: [{ pending: 0, done: 0, total: 0 }] }))
   ).rows[0];
   const shopStats = { pending: Number(shopAgg.pending), done: Number(shopAgg.done), total: Number(shopAgg.total) };
-  const editable = ['admin', 'publisher'].includes(a.role);
+  const editable = a.role !== 'editor';
+  const members = ['admin','director'].includes(a.role) ? (await pool.query("SELECT id,email,role,active,permissions FROM admins WHERE role = ANY($1::text[]) ORDER BY id DESC",[a.role === 'admin' ? ['director','staff'] : ['staff']])).rows : [];
   const totalCents = contributions.reduce((acc: number, c: any) => acc + Number(c.amount_cents || 0), 0);
 
   const tabs = [
     { id: 'dashboard', label: 'Painel' },
+    { id: 'finance', label: 'Relatório financeiro' },
     { id: 'site', label: 'Textos do site' },
     { id: 'stories', label: 'Histórias' },
     { id: 'impact', label: 'Impacto' },
@@ -68,7 +73,10 @@ export default async function Admin({
     { id: 'presets', label: 'Valores PIX' },
     { id: 'donations', label: 'Doações' },
     { id: 'shop', label: 'Lojinha' },
-  ];
+    { id: 'team', label: 'Equipe e Acessos' },
+    { id: 'profile', label: 'Editar meu perfil' },
+  ].filter(t => t.id === 'profile' ? true : t.id === 'dashboard' ? a.role === 'admin' : (t.id === 'team' ? ['admin','director'].includes(a.role) : (t.id === 'finance' ? a.role === 'director' : canAccess(a,t.id as any))));
+  if (!tabs.some(t => t.id === tab)) redirect(a.role === 'admin' ? '/admin?tab=dashboard' : '/admin?tab=site');
 
   return (
     <main style={{ background: '#f0f4f3', minHeight: '100vh' }}>
@@ -109,26 +117,10 @@ export default async function Admin({
       </div>
 
       <div className="container" style={{ paddingTop: 32, paddingBottom: 60 }}>
-        {tab === 'dashboard' && (
-          <>
-            <h2 style={h2}>Visao geral</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18, marginBottom: 36 }}>
-              <StatCard label="PIX gerados" value={String(contributions.length)} hint="ultimos 50 registros" />
-              <StatCard label="Valor solicitado" value={(totalCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} hint="soma dos codigos" />
-              <StatCard label="Projetos ativos" value={String(campaigns.filter((c: any) => c.active).length)} hint={`${campaigns.length} no total`} />
-              <StatCard label="Itens na galeria" value={String(carousel.filter((c: any) => c.active).length)} hint="fotos e videos" />
-            </div>
-            <div className="panel">
-              <h3 style={{ marginBottom: 12 }}>Atividade recente</h3>
-              {logs.length === 0 && <p className="muted">Nenhum evento ainda.</p>}
-              {logs.map((l: any, i: number) => (
-                <p key={i} style={{ fontSize: '0.9rem', marginBottom: 6, color: 'var(--texto-claro)' }}>
-                  {new Date(l.created_at).toLocaleString('pt-BR')} — <strong style={{ color: 'var(--texto)' }}>{l.action}</strong>
-                </p>
-              ))}
-            </div>
-          </>
-        )}
+        {tab === 'profile' && <section style={{background:'white',padding:24,borderRadius:14,maxWidth:650}}><h2>Editar meu perfil</h2><p>Altere seu e-mail e, opcionalmente, sua senha. Confirme com a senha atual.</p><form action={updateOwnProfile} style={{display:'grid',gap:14}}><label>E-mail<input name="email" type="email" defaultValue={a.email} required style={{display:'block',padding:12,width:'100%'}}/></label><label>Senha atual<input name="currentPassword" type="password" required style={{display:'block',padding:12,width:'100%'}}/></label><label>Nova senha (opcional, mínimo 12 caracteres)<input name="newPassword" type="password" minLength={12} style={{display:'block',padding:12,width:'100%'}}/></label><button className="btn" type="submit">Salvar meu perfil</button></form></section>}
+        {tab === 'team' && ['admin','director'].includes(a.role) && <TeamPanel members={members} viewerRole={a.role} />}
+        {tab === 'finance' && a.role === 'director' && <FinanceDashboard activeProjects={campaigns.filter((c: any) => c.active).length} galleryCount={carousel.filter((c: any) => c.active).length} readOnly visibleCards={a.permissions?.includes('cards:configured') ? a.permissions.filter((x:string)=>x.startsWith('card:')).map((x:string)=>x.slice(5)) : undefined} />}
+        {tab === 'dashboard' && a.role === 'admin' && <><div style={{background:'white',borderRadius:14,padding:20,marginBottom:18}}><h3>Equipe cadastrada</h3><p><strong>{members.filter((m:any)=>m.role==='director').length}</strong> diretores · <strong>{members.filter((m:any)=>m.role==='staff').length}</strong> staffs · <strong>{members.filter((m:any)=>m.active).length}</strong> contas ativas</p><a href="/admin?tab=team">Gerenciar equipe e permissões</a></div><FinanceDashboard activeProjects={campaigns.filter((c: any) => c.active).length} galleryCount={carousel.filter((c: any) => c.active).length} /></>}
 
         {tab === 'site' && (
           <>

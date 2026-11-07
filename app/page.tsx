@@ -3,6 +3,7 @@ import { pool } from '../lib/db';
 import { ensureSchema } from '../lib/schema';
 import Donation from './donation';
 import Carousel from './components/Carousel';
+import SiteHeader from './components/SiteHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,62 +90,6 @@ export default async function Home() {
           max-width: 100%;
         }
 
-        .site-header {
-          background: ${colorHeader} !important;
-          border-bottom-color: ${colorHeader}22 !important;
-          width: 100%;
-          height: auto !important;
-          min-height: 74px;
-          z-index: 100;
-        }
-
-        .site-header .nav {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 24px;
-          min-height: 74px;
-        }
-
-        .site-header .logo {
-          display: inline-flex;
-          align-items: center;
-          flex-shrink: 0;
-          color: #ffffff !important;
-          font-family: Georgia, serif;
-          font-size: clamp(17px, 1.65vw, 23px);
-          font-weight: 600;
-          line-height: 1.25;
-          text-decoration: none;
-        }
-
-        .site-header .logo span {
-          color: #ffffff !important;
-        }
-
-        .site-header .nav-links {
-          display: flex;
-          align-items: center;
-          gap: 28px;
-          margin: 0;
-          padding: 0;
-          list-style: none;
-        }
-
-        .site-header .nav-links a {
-          color: rgba(255,255,255,0.85) !important;
-          text-decoration: none;
-        }
-
-        .site-header .nav-links a:hover {
-          color: #ffffff !important;
-        }
-
-        .site-header .nav > .btn {
-          flex-shrink: 0;
-          white-space: nowrap;
-        }
-
         .btn-primary {
           background: ${colorButton} !important;
           color: ${colorButtonText} !important;
@@ -224,10 +169,10 @@ export default async function Home() {
         .abm-site .hero-banner {
           display: block;
           width: 100%;
-          height: auto;
+          height: auto !important;
           max-width: 100%;
-          object-fit: contain;
-          object-position: center;
+          object-fit: contain !important;
+          object-position: center !important;
           border-radius: 16px;
         }
 
@@ -292,17 +237,13 @@ export default async function Home() {
           background: ${primary}14 !important;
         }
 
-        footer {
+        .abm-site footer {
           background: ${colorFooter} !important;
         }
 
         /* TABLETS */
 
         @media (max-width: 1024px) {
-          .site-header .nav-links {
-            gap: 14px;
-          }
-
           .abm-site .hero-grid {
             grid-template-columns: minmax(0, 1fr);
             gap: 32px;
@@ -317,67 +258,6 @@ export default async function Home() {
         /* CELULARES */
 
         @media (max-width: 768px) {
-          .site-header {
-            min-height: 68px !important;
-          }
-
-          .site-header .nav {
-            display: flex !important;
-            flex-direction: row !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            flex-wrap: nowrap !important;
-            gap: 12px !important;
-            min-height: 68px !important;
-            height: auto !important;
-            padding-top: 12px !important;
-            padding-bottom: 12px !important;
-          }
-
-          .site-header .logo {
-            display: block !important;
-            flex: 1 1 auto !important;
-            min-width: 0 !important;
-            max-width: 100%;
-            font-size: 0 !important;
-            line-height: 1 !important;
-            white-space: nowrap !important;
-            overflow: hidden;
-          }
-
-          .site-header .logo::after {
-            content: "Manancial";
-            display: inline-block;
-            font-family: Georgia, serif;
-            font-size: 24px;
-            font-weight: 600;
-            line-height: 1.2;
-            color: #ffffff;
-          }
-
-          .site-header .logo span {
-            display: none !important;
-          }
-
-          .site-header .nav-links {
-            display: none !important;
-          }
-
-          .site-header .nav > .btn {
-            display: inline-flex !important;
-            align-items: center;
-            justify-content: center;
-            flex: 0 0 auto !important;
-            width: auto !important;
-            max-width: 45%;
-            min-height: 44px;
-            margin: 0 !important;
-            padding: 11px 18px !important;
-            font-size: 13px !important;
-            line-height: 1.2;
-            white-space: nowrap !important;
-          }
-
           .abm-site .hero {
             padding-top: 40px;
             padding-bottom: 48px;
@@ -464,53 +344,19 @@ export default async function Home() {
         }
 
         @media (max-width: 360px) {
-          .site-header .logo::after {
-            font-size: 21px;
-          }
-
-          .site-header .nav > .btn {
-            padding: 10px 13px !important;
-            font-size: 12px !important;
-          }
-
           .abm-site .hero-card {
             padding: 12px;
           }
         }
       `}</style>
 
-      {/* CABEÇALHO */}
-      <header className="site-header">
-        <div className="container nav">
-          <a href="/" className="logo">
-            {siteName.split(' ')[0]}{' '}
-            <span>
-              {siteName.split(' ').slice(1).join(' ')}
-            </span>
-          </a>
-
-          <ul className="nav-links">
-            {stories.length > 0 && (
-              <li><a href="#historias">Histórias</a></li>
-            )}
-            {stats.length > 0 && (
-              <li><a href="#impacto">Impacto</a></li>
-            )}
-            {carousel.length > 0 && (
-              <li><a href="#galeria">Galeria</a></li>
-            )}
-            {cs.length > 0 && (
-              <li><a href="#projetos">Projetos</a></li>
-            )}
-            <li><a href="#doar">Doar</a></li>
-            <li><a href="/loja">Lojinha</a></li>
-          </ul>
-
-          <a href="#doar" className="btn btn-primary">
-            Quero doar
-          </a>
-        </div>
-      </header>
+      {/* CABEÇALHO OFICIAL */}
+      <SiteHeader
+        showStories={stories.length > 0}
+        showImpact={stats.length > 0}
+        showGallery={carousel.length > 0}
+        showProjects={cs.length > 0}
+      />
 
       {/* HERO */}
       <section className="hero">

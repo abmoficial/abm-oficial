@@ -6,7 +6,7 @@ import { unlink } from 'fs/promises';
 import path from 'path';
 import { pool } from '../../lib/db';
 import { KEY_RE, storageDir } from '../../lib/shopfiles';
-import { getAdmin, login as doLogin, logout as doLogout } from '../../lib/auth';
+import { getAdmin, requireArea, login as doLogin, logout as doLogout } from '../../lib/auth';
 
 function checkOrigin(h: Headers) {
   const origin = h.get('origin') || '';
@@ -47,8 +47,7 @@ export async function logout() {
 
 export async function saveSite(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (!['admin', 'publisher'].includes(a.role)) throw Error('Sem permissão');
+  const a = await requireArea('site');
 
   const fields = [
     'site_name', 'hero_title', 'hero_text', 'button_text',
@@ -80,8 +79,7 @@ export async function saveSite(fd: FormData) {
 
 export async function addCampaign(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (!['admin', 'publisher'].includes(a.role)) throw Error('Sem permissão');
+  const a = await requireArea('campaigns');
   const title = text(fd, 'title', 160);
   if (!title) throw Error('Título obrigatório');
   const description = text(fd, 'description', 3000);
@@ -99,8 +97,7 @@ export async function addCampaign(fd: FormData) {
 
 export async function toggleCampaign(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (!['admin', 'publisher'].includes(a.role)) throw Error('Sem permissão');
+  const a = await requireArea('campaigns');
   const id = Number(fd.get('id'));
   await pool.query('UPDATE campaigns SET active=NOT active WHERE id=$1', [id]);
   await pool.query(
@@ -113,8 +110,7 @@ export async function toggleCampaign(fd: FormData) {
 
 export async function deleteCampaign(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (a.role !== 'admin') throw Error('Sem permissão');
+  const a = await requireArea('campaigns');
   const id = Number(fd.get('id'));
   await pool.query('DELETE FROM campaigns WHERE id=$1', [id]);
   await pool.query(
@@ -128,8 +124,7 @@ export async function deleteCampaign(fd: FormData) {
 /* ===== STORIES ===== */
 export async function addStory(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (!['admin', 'publisher'].includes(a.role)) throw Error('Sem permissão');
+  const a = await requireArea('stories');
   const name = text(fd, 'name', 120);
   const role = text(fd, 'role', 120);
   const quote = text(fd, 'quote', 1000);
@@ -147,7 +142,7 @@ export async function addStory(fd: FormData) {
 
 export async function toggleStory(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
+  const a = await requireArea('stories');
   const id = Number(fd.get('id'));
   await pool.query('UPDATE stories SET active=NOT active WHERE id=$1', [id]);
   revalidatePath('/');
@@ -156,8 +151,7 @@ export async function toggleStory(fd: FormData) {
 
 export async function deleteStory(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (a.role !== 'admin') throw Error('Sem permissão');
+  const a = await requireArea('stories');
   const id = Number(fd.get('id'));
   await pool.query('DELETE FROM stories WHERE id=$1', [id]);
   revalidatePath('/');
@@ -167,8 +161,7 @@ export async function deleteStory(fd: FormData) {
 /* ===== IMPACT STATS ===== */
 export async function addImpact(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (!['admin', 'publisher'].includes(a.role)) throw Error('Sem permissão');
+  const a = await requireArea('impact');
   const icon = text(fd, 'icon', 8) || '⭐';
   const value = text(fd, 'value', 40);
   const label = text(fd, 'label', 120);
@@ -183,7 +176,7 @@ export async function addImpact(fd: FormData) {
 
 export async function toggleImpact(fd: FormData) {
   checkOrigin(await headers());
-  await requireAdmin();
+  await requireArea('impact');
   const id = Number(fd.get('id'));
   await pool.query('UPDATE impact_stats SET active=NOT active WHERE id=$1', [id]);
   revalidatePath('/');
@@ -192,8 +185,7 @@ export async function toggleImpact(fd: FormData) {
 
 export async function deleteImpact(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (a.role !== 'admin') throw Error('Sem permissão');
+  const a = await requireArea('impact');
   const id = Number(fd.get('id'));
   await pool.query('DELETE FROM impact_stats WHERE id=$1', [id]);
   revalidatePath('/');
@@ -203,8 +195,7 @@ export async function deleteImpact(fd: FormData) {
 /* ===== CAROUSEL ===== */
 export async function addCarousel(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (!['admin', 'publisher'].includes(a.role)) throw Error('Sem permissão');
+  const a = await requireArea('carousel');
   const title = text(fd, 'title', 160);
   const caption = text(fd, 'caption', 500);
   const image_url = mediaUrl(text(fd, 'image_url', 500));
@@ -235,7 +226,7 @@ export async function addCarousel(fd: FormData) {
 
 export async function toggleCarousel(fd: FormData) {
   checkOrigin(await headers());
-  await requireAdmin();
+  await requireArea('carousel');
   const id = Number(fd.get('id'));
   await pool.query('UPDATE carousel_items SET active=NOT active WHERE id=$1', [id]);
   revalidatePath('/');
@@ -244,8 +235,7 @@ export async function toggleCarousel(fd: FormData) {
 
 export async function deleteCarousel(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (a.role !== 'admin') throw Error('Sem permissão');
+  const a = await requireArea('carousel');
   const id = Number(fd.get('id'));
   await pool.query('DELETE FROM carousel_items WHERE id=$1', [id]);
   revalidatePath('/');
@@ -256,8 +246,7 @@ export async function deleteCarousel(fd: FormData) {
 /* ===== UPDATE IMPACT ===== */
 export async function updateImpact(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (!['admin', 'publisher'].includes(a.role)) throw Error('Sem permissao');
+  const a = await requireArea('impact');
   const id = Number(fd.get('id'));
   const icon = text(fd, 'icon', 8) || '⭐';
   const value = text(fd, 'value', 40);
@@ -272,8 +261,7 @@ export async function updateImpact(fd: FormData) {
 /* ===== DONATION PRESETS ===== */
 export async function addPreset(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (!['admin', 'publisher'].includes(a.role)) throw Error('Sem permissão');
+  const a = await requireArea('presets');
   const amount = Number(fd.get('amount') || 0);
   const label = text(fd, 'label', 40);
   const description = text(fd, 'description', 80);
@@ -289,7 +277,7 @@ export async function addPreset(fd: FormData) {
 
 export async function togglePreset(fd: FormData) {
   checkOrigin(await headers());
-  await requireAdmin();
+  await requireArea('presets');
   const id = Number(fd.get('id'));
   await pool.query('UPDATE donation_presets SET active=NOT active WHERE id=$1', [id]);
   revalidatePath('/');
@@ -298,8 +286,7 @@ export async function togglePreset(fd: FormData) {
 
 export async function deletePreset(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (a.role !== 'admin') throw Error('Sem permissão');
+  const a = await requireArea('presets');
   const id = Number(fd.get('id'));
   await pool.query('DELETE FROM donation_presets WHERE id=$1', [id]);
   revalidatePath('/');
@@ -364,8 +351,7 @@ async function parseShopProduct(fd: FormData) {
 
 export async function addShopProduct(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (!['admin', 'publisher'].includes(a.role)) throw Error('Sem permissão');
+  const a = await requireArea('shop');
   const p = await parseShopProduct(fd);
   const slug = await uniqueSlug(slugify(p.title));
   await pool.query(
@@ -383,8 +369,7 @@ export async function addShopProduct(fd: FormData) {
 
 export async function updateShopProduct(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (!['admin', 'publisher'].includes(a.role)) throw Error('Sem permissão');
+  const a = await requireArea('shop');
   const id = Number(fd.get('id'));
   if (!id) throw Error('Produto inválido');
   const old = (await pool.query('SELECT digital_file_key FROM shop_products WHERE id=$1', [id])).rows[0];
@@ -404,7 +389,7 @@ export async function updateShopProduct(fd: FormData) {
 
 export async function toggleShopProduct(fd: FormData) {
   checkOrigin(await headers());
-  await requireAdmin();
+  await requireArea('shop');
   const id = Number(fd.get('id'));
   await pool.query('UPDATE shop_products SET active = NOT active WHERE id=$1', [id]);
   revalidatePath('/loja');
@@ -413,8 +398,7 @@ export async function toggleShopProduct(fd: FormData) {
 
 export async function deleteShopProduct(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (a.role !== 'admin') throw Error('Sem permissão');
+  const a = await requireArea('shop');
   const id = Number(fd.get('id'));
   const has = await pool.query('SELECT 1 FROM shop_orders WHERE product_id=$1 LIMIT 1', [id]);
   if (has.rowCount) {
@@ -431,8 +415,7 @@ export async function deleteShopProduct(fd: FormData) {
 
 export async function markShopOrderPaid(fd: FormData) {
   checkOrigin(await headers());
-  const a = await requireAdmin();
-  if (!['admin', 'publisher'].includes(a.role)) throw Error('Sem permissao');
+  const a = await requireArea('shop');
   const id = Number(fd.get('id'));
   await pool.query(
     `UPDATE shop_orders SET status='delivered', paid_at=COALESCE(paid_at, now()), delivered_at=now() WHERE id=$1`,

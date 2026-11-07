@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
-import { getAdmin } from '../../../../lib/auth';
+import { getAdmin, canAccess } from '../../../../lib/auth';
 import { pool } from '../../../../lib/db';
 import { ensureSchema } from '../../../../lib/schema';
 import { MAX_BYTES, RULES, extOf, safeName, storageDir } from '../../../../lib/shopfiles';
