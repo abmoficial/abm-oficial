@@ -9,7 +9,7 @@ export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {
-    // 1. Validar configuração antes de processar.
+    // 1. Verificar a configuração do Pix.
     if (
       !process.env.PIX_KEY?.trim() ||
       !process.env.PIX_RECEIVER_NAME?.trim()
@@ -19,13 +19,13 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            'PIX indisponível: configuração do servidor incompleta.',
+            'Pix indisponível: configuração do servidor incompleta.',
         },
         { status: 503 }
       );
     }
 
-    // 2. Ler solicitação.
+    // 2. Ler os dados enviados pelo formulário.
     let body: any;
 
     try {
@@ -48,6 +48,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // 3. Validar o valor da doação.
     const amount = Number(body.amount);
     const cents = Math.round(amount * 100);
 
@@ -63,9 +64,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const name = String(body.name || '').slice(0, 80);
-    const message = String(body.message || '').slice(0, 500);
+    // 4. Dados opcionais do doador.
+    const name = String(body.name || '')
+      .trim()
+      .slice(0, 80);
 
+    const message = String(body.message || '')
+      .trim()
+      .slice(0, 500);
+
+    // 5. Validar a campanha selecionada.
     const campaignId =
       body.campaignId === null ||
       body.campaignId === undefined ||
@@ -75,7 +83,10 @@ export async function POST(req: Request) {
 
     if (
       campaignId !== null &&
-      (!Number.isSafeInteger(campaignId) || campaignId <= 0)
+      (
+        !Number.isSafeInteger(campaignId) ||
+        campaignId <= 0
+      )
     ) {
       return NextResponse.json(
         { error: 'Campanha inválida.' },
@@ -83,10 +94,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // 3. Verificar campanha.
     if (campaignId !== null) {
       const campaign = await pool.query(
-        'SELECT 1 FROM campaigns WHERE id=$1 AND active=true',
+        `SELECT 1
+         FROM campaigns
+         WHERE id = $1 AND active = true`,
         [campaignId]
       );
 
@@ -98,36 +110,54 @@ export async function POST(req: Request) {
       }
     }
 
-    // 4. Criar identificador único.
+    // 6. Gerar um identificador único para a doação.
     const txid = randomBytes(12)
       .toString('hex')
       .toUpperCase();
 
-    // 5. Gerar código PIX.
+    // 7. Gerar o Pix com a configuração atual.
     const code = makePix(cents, txid);
 
-    // 6. Gerar QR Code.
+    // 8. Gerar a imagem do QR Code.
     const qr = await QRCode.toDataURL(code, {
       margin: 2,
       width: 320,
       errorCorrectionLevel: 'M',
     });
 
-    // 7. Registrar contribuição no PostgreSQL.
+    // 9. Registrar a contribuição no banco.
+    // O pagamento permanece pendente.
     await pool.query(
       `INSERT INTO contributions
-       (amount_cents, donor_name, message, campaign_id, pix_txid)
+       (
+         amount_cents,
+         donor_name,
+         message,
+         campaign_id,
+         pix_txid
+       )
        VALUES ($1, $2, $3, $4, $5)`,
-      [cents, name, message, campaignId, txid]
+      [
+        cents,
+        name,
+        message,
+        campaignId,
+        txid,
+      ]
     );
 
-    // 8. Retornar os mesmos campos esperados
-    // pelo formulário atual.
+    // 10. Retornar o Pix e sua referência.
     return NextResponse.json(
       {
         code,
         qr,
         receiver: process.env.PIX_RECEIVER_NAME,
+
+        // Referência para a futura comunicação
+        // de pagamento pelo doador.
+        txid,
+
+        // Não representa pagamento recebido.
         status: 'awaiting_manual_verification',
       },
       {
@@ -137,31 +167,35 @@ export async function POST(req: Request) {
       }
     );
   } catch (error) {
-    // Não registrar chaves PIX, códigos copia e cola
-    // nem dados pessoais nos logs.
-    const err = error as Error & { code?: string };
+    // Evitar expor dados financeiros ou
+    // informações internas ao visitante.
+    const err = error as Error & {
+      code?: string;
+    };
 
     const category =
       err.message?.startsWith('PIX_')
         ? 'PIX_CONFIGURATION'
-        : err.code && (
-            err.code.startsWith('08') ||
-            err.code.startsWith('23') ||
-            err.code.startsWith('42')
-          )
+        : err.code &&
+            (
+              err.code.startsWith('08') ||
+              err.code.startsWith('23') ||
+              err.code.startsWith('42')
+            )
           ? 'DATABASE_ERROR'
           : 'PIX_INTERNAL_ERROR';
 
     console.error('PIX API error:', {
       category,
       code: err.code || null,
-      message: err.message || 'Erro desconhecido',
+      message:
+        err.message || 'Erro desconhecido',
     });
 
     return NextResponse.json(
       {
         error:
-          'Não foi possível gerar PIX. Tente novamente.',
+          'Não foi possível gerar Pix. Tente novamente.',
         category,
       },
       {
