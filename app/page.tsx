@@ -2,6 +2,7 @@ import { pool } from '../lib/db';
 import { ensureSchema } from '../lib/schema';
 import Donation from './donation';
 import Carousel from './components/Carousel';
+import SiteHeader from './components/SiteHeader';
 
 export const dynamic = 'force-dynamic';
 
