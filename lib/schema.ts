@@ -4,7 +4,7 @@ import { pool } from './db';
 
 // Aplica as migrações (idempotentes) uma vez por processo. Evita "tabela não existe"
 // quando o banco foi restaurado de um backup antigo.
-const FILES = ['schema-v2.sql', 'schema-shop.sql', 'schema-shop-files.sql'];
+const FILES = ['schema-v2.sql', 'schema-shop.sql', 'schema-shop-files.sql', 'schema-team.sql'];
 const g = globalThis as unknown as { __schemaReady?: Promise<void> };
 
 async function run() {

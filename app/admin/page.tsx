@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getAdmin } from '../../lib/auth';
+import { getAdmin, canAccess } from '../../lib/auth';
 import { pool } from '../../lib/db';
 import {
   addCampaign, toggleCampaign, deleteCampaign, logout,
@@ -15,6 +15,7 @@ import SiteForm from './SiteForm';
 import CampaignForm from './CampaignForm';
 import ImpactCard from './ImpactCard';
 import ShopProductForm from './ShopProductForm';
+import TeamPanel from './TeamPanel';
 import { ensureSchema } from '../../lib/schema';
 
 export const dynamic = 'force-dynamic';
@@ -24,9 +25,9 @@ export default async function Admin({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
+  await ensureSchema();
   const a = await getAdmin();
   if (!a) redirect('/login');
-  await ensureSchema();
   const sp = await searchParams;
   const tab = sp.tab || 'dashboard';
 
@@ -55,7 +56,8 @@ export default async function Admin({
       .catch(() => ({ rows: [{ pending: 0, done: 0, total: 0 }] }))
   ).rows[0];
   const shopStats = { pending: Number(shopAgg.pending), done: Number(shopAgg.done), total: Number(shopAgg.total) };
-  const editable = ['admin', 'publisher'].includes(a.role);
+  const editable = a.role !== 'editor';
+  const members = a.role === 'admin' ? (await pool.query("SELECT id,email,role,active,permissions FROM admins WHERE role IN ('director','staff') ORDER BY id DESC")).rows : [];
   const totalCents = contributions.reduce((acc: number, c: any) => acc + Number(c.amount_cents || 0), 0);
 
   const tabs = [
@@ -68,7 +70,9 @@ export default async function Admin({
     { id: 'presets', label: 'Valores PIX' },
     { id: 'donations', label: 'Doações' },
     { id: 'shop', label: 'Lojinha' },
-  ];
+    { id: 'team', label: 'Equipe e Acessos' },
+  ].filter(t => t.id === 'dashboard' || (t.id === 'team' ? a.role === 'admin' : canAccess(a,t.id as any)));
+  if (tab !== 'dashboard' && !tabs.some(t => t.id === tab)) redirect('/admin');
 
   return (
     <main style={{ background: '#f0f4f3', minHeight: '100vh' }}>
@@ -109,6 +113,7 @@ export default async function Admin({
       </div>
 
       <div className="container" style={{ paddingTop: 32, paddingBottom: 60 }}>
+        {tab === 'team' && a.role === 'admin' && <TeamPanel members={members} />}
         {tab === 'dashboard' && (
           <>
             <h2 style={h2}>Visao geral</h2>
