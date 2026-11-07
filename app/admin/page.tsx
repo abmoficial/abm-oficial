@@ -16,6 +16,7 @@ import CampaignForm from './CampaignForm';
 import ImpactCard from './ImpactCard';
 import ShopProductForm from './ShopProductForm';
 import TeamPanel from './TeamPanel';
+import FinanceDashboard from './FinanceDashboard';
 import { ensureSchema } from '../../lib/schema';
 
 export const dynamic = 'force-dynamic';
@@ -29,7 +30,7 @@ export default async function Admin({
   const a = await getAdmin();
   if (!a) redirect('/login');
   const sp = await searchParams;
-  const tab = sp.tab || 'dashboard';
+  const tab = sp.tab || (a.role === 'admin' ? 'dashboard' : 'site');
 
   const s = (await pool.query('SELECT * FROM site_settings WHERE id=1')).rows[0] || {};
   const campaigns = (await pool.query('SELECT * FROM campaigns ORDER BY id DESC')).rows;
@@ -57,11 +58,12 @@ export default async function Admin({
   ).rows[0];
   const shopStats = { pending: Number(shopAgg.pending), done: Number(shopAgg.done), total: Number(shopAgg.total) };
   const editable = a.role !== 'editor';
-  const members = a.role === 'admin' ? (await pool.query("SELECT id,email,role,active,permissions FROM admins WHERE role IN ('director','staff') ORDER BY id DESC")).rows : [];
+  const members = ['admin','director'].includes(a.role) ? (await pool.query("SELECT id,email,role,active,permissions FROM admins WHERE role = ANY($1::text[]) ORDER BY id DESC",[a.role === 'admin' ? ['director','staff'] : ['staff']])).rows : [];
   const totalCents = contributions.reduce((acc: number, c: any) => acc + Number(c.amount_cents || 0), 0);
 
   const tabs = [
     { id: 'dashboard', label: 'Painel' },
+    { id: 'finance', label: 'Relatório financeiro' },
     { id: 'site', label: 'Textos do site' },
     { id: 'stories', label: 'Histórias' },
     { id: 'impact', label: 'Impacto' },
@@ -71,8 +73,8 @@ export default async function Admin({
     { id: 'donations', label: 'Doações' },
     { id: 'shop', label: 'Lojinha' },
     { id: 'team', label: 'Equipe e Acessos' },
-  ].filter(t => t.id === 'dashboard' || (t.id === 'team' ? a.role === 'admin' : canAccess(a,t.id as any)));
-  if (tab !== 'dashboard' && !tabs.some(t => t.id === tab)) redirect('/admin');
+  ].filter(t => t.id === 'dashboard' ? a.role === 'admin' : (t.id === 'team' ? ['admin','director'].includes(a.role) : (t.id === 'finance' ? a.role === 'director' : canAccess(a,t.id as any))));
+  if (!tabs.some(t => t.id === tab)) redirect(a.role === 'admin' ? '/admin?tab=dashboard' : '/admin?tab=site');
 
   return (
     <main style={{ background: '#f0f4f3', minHeight: '100vh' }}>
@@ -113,27 +115,9 @@ export default async function Admin({
       </div>
 
       <div className="container" style={{ paddingTop: 32, paddingBottom: 60 }}>
-        {tab === 'team' && a.role === 'admin' && <TeamPanel members={members} />}
-        {tab === 'dashboard' && (
-          <>
-            <h2 style={h2}>Visao geral</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18, marginBottom: 36 }}>
-              <StatCard label="PIX gerados" value={String(contributions.length)} hint="ultimos 50 registros" />
-              <StatCard label="Valor solicitado" value={(totalCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} hint="soma dos codigos" />
-              <StatCard label="Projetos ativos" value={String(campaigns.filter((c: any) => c.active).length)} hint={`${campaigns.length} no total`} />
-              <StatCard label="Itens na galeria" value={String(carousel.filter((c: any) => c.active).length)} hint="fotos e videos" />
-            </div>
-            <div className="panel">
-              <h3 style={{ marginBottom: 12 }}>Atividade recente</h3>
-              {logs.length === 0 && <p className="muted">Nenhum evento ainda.</p>}
-              {logs.map((l: any, i: number) => (
-                <p key={i} style={{ fontSize: '0.9rem', marginBottom: 6, color: 'var(--texto-claro)' }}>
-                  {new Date(l.created_at).toLocaleString('pt-BR')} — <strong style={{ color: 'var(--texto)' }}>{l.action}</strong>
-                </p>
-              ))}
-            </div>
-          </>
-        )}
+        {tab === 'team' && ['admin','director'].includes(a.role) && <TeamPanel members={members} viewerRole={a.role} />}
+        {tab === 'finance' && a.role === 'director' && <FinanceDashboard activeProjects={campaigns.filter((c: any) => c.active).length} galleryCount={carousel.filter((c: any) => c.active).length} readOnly />}
+        {tab === 'dashboard' && a.role === 'admin' && <FinanceDashboard activeProjects={campaigns.filter((c: any) => c.active).length} galleryCount={carousel.filter((c: any) => c.active).length} />}
 
         {tab === 'site' && (
           <>
