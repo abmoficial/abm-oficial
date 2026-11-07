@@ -57,23 +57,14 @@ export default async function Home() {
         .impact-card { background: ${primary}14 !important; }
         .hero-badge { border-color: ${primary}33 !important; }
       `}</style>
-      <header className="site-header">
-        <div className="container nav">
-          <a href="/" className="logo">
-            {s.site_name?.split(' ')[0] || 'Associação'}{' '}
-            <span>{s.site_name?.split(' ').slice(1).join(' ') || 'Manancial'}</span>
-          </a>
-          <ul className="nav-links">
-            {stories.length > 0 && <li><a href="#historias">Histórias</a></li>}
-            {stats.length > 0 && <li><a href="#impacto">Impacto</a></li>}
-            {carousel.length > 0 && <li><a href="#galeria">Galeria</a></li>}
-            {cs.length > 0 && <li><a href="#projetos">Projetos</a></li>}
-            <li><a href="#doar">Doar</a></li>
-            <li><a href="/loja">Lojinha</a></li>
-          </ul>
-          <a href="#doar" className="btn btn-primary">Quero doar</a>
-        </div>
-      </header>
+      
+      <SiteHeader
+        showStories={stories.length > 0}
+        showImpact={stats.length > 0}
+        showGallery={carousel.length > 0}
+        showProjects={cs.length > 0}
+      />
+
 
       {/* HERO */}
       <section className="hero">
