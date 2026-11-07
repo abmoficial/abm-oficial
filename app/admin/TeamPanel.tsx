@@ -1,3 +1,4 @@
+import { CARD_KEYS, CARD_LABELS } from './FinanceDashboard';
 import { AREAS } from '../../lib/auth';
 import { createMember, updateMember, resetMemberPassword } from './team-actions';
 const names: Record<string,string> = {site:'Textos do site',stories:'Histórias',impact:'Impacto',carousel:'Galeria / Vídeos',campaigns:'Projetos',presets:'Valores PIX',donations:'Doações',shop:'Lojinha'};
@@ -18,11 +19,13 @@ export default function TeamPanel({members,viewerRole}:{members:Member[];viewerR
     </div>
     {members.map(m=><div key={m.id} style={{background:'white',padding:24,borderRadius:14}}>
       <h3>{m.email}</h3>
+      {viewerRole === 'admin' && m.role === 'director' && <p style={{color:'#526b61'}}>Configure os cards financeiros disponíveis para este diretor.</p>}
       <form action={updateMember} style={{display:'grid',gap:12,maxWidth:600}}>
         <input type="hidden" name="id" value={m.id}/>
         <label>Função <select name="role" defaultValue={m.role} style={field}><option value="staff">Staff</option>{viewerRole === 'admin' && <option value="director">Diretor</option>}</select></label>
         <label><input type="checkbox" name="active" defaultChecked={m.active}/> Conta ativa</label>
         <fieldset style={{border:'1px solid #ddd',borderRadius:8,padding:12}}><legend>Permissões do Staff</legend>{AREAS.map(x=><label key={x} style={{display:'block',padding:5}}><input type="checkbox" name="permissions" value={x} defaultChecked={m.permissions.includes(x)}/> {names[x]}</label>)}</fieldset>
+        {viewerRole === 'admin' && <fieldset style={{border:'1px solid #ddd',borderRadius:8,padding:12}}><legend>Cards visíveis ao diretor (somente leitura)</legend>{[...CARD_KEYS,'evolution'].map((key,i)=><label key={key} style={{display:'block',padding:5}}><input type="checkbox" name="cards" value={key} defaultChecked={!m.permissions.includes('cards:configured') || m.permissions.includes('card:'+key)}/> {i===CARD_KEYS.length ? 'Gráfico de evolução das receitas' : CARD_LABELS[i]}</label>)}</fieldset>}
         <button className="btn" type="submit">Salvar permissões</button>
       </form>
       <form action={resetMemberPassword} style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:16}}>

@@ -16,6 +16,7 @@ import CampaignForm from './CampaignForm';
 import ImpactCard from './ImpactCard';
 import ShopProductForm from './ShopProductForm';
 import TeamPanel from './TeamPanel';
+import { updateOwnProfile } from './team-actions';
 import FinanceDashboard from './FinanceDashboard';
 import { ensureSchema } from '../../lib/schema';
 
@@ -73,7 +74,8 @@ export default async function Admin({
     { id: 'donations', label: 'Doações' },
     { id: 'shop', label: 'Lojinha' },
     { id: 'team', label: 'Equipe e Acessos' },
-  ].filter(t => t.id === 'dashboard' ? a.role === 'admin' : (t.id === 'team' ? ['admin','director'].includes(a.role) : (t.id === 'finance' ? a.role === 'director' : canAccess(a,t.id as any))));
+    { id: 'profile', label: 'Editar meu perfil' },
+  ].filter(t => t.id === 'profile' ? true : t.id === 'dashboard' ? a.role === 'admin' : (t.id === 'team' ? ['admin','director'].includes(a.role) : (t.id === 'finance' ? a.role === 'director' : canAccess(a,t.id as any))));
   if (!tabs.some(t => t.id === tab)) redirect(a.role === 'admin' ? '/admin?tab=dashboard' : '/admin?tab=site');
 
   return (
@@ -115,9 +117,10 @@ export default async function Admin({
       </div>
 
       <div className="container" style={{ paddingTop: 32, paddingBottom: 60 }}>
+        {tab === 'profile' && <section style={{background:'white',padding:24,borderRadius:14,maxWidth:650}}><h2>Editar meu perfil</h2><p>Altere seu e-mail e, opcionalmente, sua senha. Confirme com a senha atual.</p><form action={updateOwnProfile} style={{display:'grid',gap:14}}><label>E-mail<input name="email" type="email" defaultValue={a.email} required style={{display:'block',padding:12,width:'100%'}}/></label><label>Senha atual<input name="currentPassword" type="password" required style={{display:'block',padding:12,width:'100%'}}/></label><label>Nova senha (opcional, mínimo 12 caracteres)<input name="newPassword" type="password" minLength={12} style={{display:'block',padding:12,width:'100%'}}/></label><button className="btn" type="submit">Salvar meu perfil</button></form></section>}
         {tab === 'team' && ['admin','director'].includes(a.role) && <TeamPanel members={members} viewerRole={a.role} />}
-        {tab === 'finance' && a.role === 'director' && <FinanceDashboard activeProjects={campaigns.filter((c: any) => c.active).length} galleryCount={carousel.filter((c: any) => c.active).length} readOnly />}
-        {tab === 'dashboard' && a.role === 'admin' && <FinanceDashboard activeProjects={campaigns.filter((c: any) => c.active).length} galleryCount={carousel.filter((c: any) => c.active).length} />}
+        {tab === 'finance' && a.role === 'director' && <FinanceDashboard activeProjects={campaigns.filter((c: any) => c.active).length} galleryCount={carousel.filter((c: any) => c.active).length} readOnly visibleCards={a.permissions?.includes('cards:configured') ? a.permissions.filter((x:string)=>x.startsWith('card:')).map((x:string)=>x.slice(5)) : undefined} />}
+        {tab === 'dashboard' && a.role === 'admin' && <><div style={{background:'white',borderRadius:14,padding:20,marginBottom:18}}><h3>Equipe cadastrada</h3><p><strong>{members.filter((m:any)=>m.role==='director').length}</strong> diretores · <strong>{members.filter((m:any)=>m.role==='staff').length}</strong> staffs · <strong>{members.filter((m:any)=>m.active).length}</strong> contas ativas</p><a href="/admin?tab=team">Gerenciar equipe e permissões</a></div><FinanceDashboard activeProjects={campaigns.filter((c: any) => c.active).length} galleryCount={carousel.filter((c: any) => c.active).length} /></>}
 
         {tab === 'site' && (
           <>

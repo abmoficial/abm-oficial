@@ -1,9 +1,11 @@
 import { pool } from '../../lib/db';
 
+export const CARD_KEYS = ['revenue','pix','shop','pending','generated','projects','gallery'] as const;
+export const CARD_LABELS = ['Receita confirmada','Doações PIX confirmadas','Receita da lojinha','PIX aguardando verificação','Códigos PIX gerados','Projetos ativos','Itens ativos na galeria'];
 const money = (cents: number) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const card: React.CSSProperties = { background: '#fff', border: '1px solid #e2e9e5', borderRadius: 16, padding: 22, boxShadow: '0 3px 12px rgba(20,55,44,.035)' };
 
-export default async function FinanceDashboard({ activeProjects, galleryCount, readOnly = false }: { activeProjects: number; galleryCount: number; readOnly?: boolean }) {
+export default async function FinanceDashboard({ activeProjects, galleryCount, readOnly = false, visibleCards }: { activeProjects: number; galleryCount: number; readOnly?: boolean; visibleCards?: string[] }) {
   // Valores arrecadados exigem confirmação explícita no banco; PIX gerado NÃO é pagamento.
   const [pix, shop, months, recent] = await Promise.all([
     pool.query(`SELECT COUNT(*)::int AS generated,
@@ -20,7 +22,7 @@ export default async function FinanceDashboard({ activeProjects, galleryCount, r
       COALESCE((SELECT SUM(c.amount_cents) FROM contributions c WHERE c.status='confirmed' AND c.confirmed_at >= calendar.month AND c.confirmed_at < calendar.month + interval '1 month'),0)::bigint AS pix,
       COALESCE((SELECT SUM(o.amount_cents) FROM shop_orders o WHERE o.status IN ('paid','delivered') AND COALESCE(o.paid_at,o.created_at) >= calendar.month AND COALESCE(o.paid_at,o.created_at) < calendar.month + interval '1 month'),0)::bigint AS shop
       FROM calendar ORDER BY calendar.month`),
-    pool.query(`SELECT action,created_at FROM audit_logs ORDER BY id DESC LIMIT 8`),
+    pool.query(`SELECT l.action,l.created_at,l.details,a.email,a.role FROM audit_logs l LEFT JOIN admins a ON a.id=l.actor_id ORDER BY l.id DESC LIMIT 30`),
   ]);
   const p = pix.rows[0], s = shop.rows[0];
   const receivedPix = Number(p.received || 0), receivedShop = Number(s.received || 0);
@@ -38,9 +40,9 @@ export default async function FinanceDashboard({ activeProjects, galleryCount, r
   return <section style={{ display: 'grid', gap: 24 }}>
     <div><h2 style={{ fontFamily: 'Georgia,serif', color: '#143b30', marginBottom: 6 }}>{readOnly ? 'Relatório financeiro • somente leitura' : 'Painel executivo'}</h2><p style={{ color: '#64746d', fontSize: 14 }}>Visão financeira e operacional • valores reais registrados no sistema</p></div>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))', gap: 14 }}>
-      {cards.map(([label,value,hint]) => <article key={label} style={card}><div style={{ color: '#687a73', fontSize: 13, marginBottom: 12 }}>{label}</div><strong style={{ color: '#103b2f', fontSize: 25, overflowWrap: 'anywhere' }}>{value}</strong><div style={{ color: '#7b8984', fontSize: 12, marginTop: 10 }}>{hint}</div></article>)}
+      {cards.filter((_,i) => !visibleCards || visibleCards.includes(CARD_KEYS[i])).map(([label,value,hint]) => <article key={label} style={card}><div style={{ color: '#687a73', fontSize: 13, marginBottom: 12 }}>{label}</div><strong style={{ color: '#103b2f', fontSize: 25, overflowWrap: 'anywhere' }}>{value}</strong><div style={{ color: '#7b8984', fontSize: 12, marginTop: 10 }}>{hint}</div></article>)}
     </div>
-    <div style={card}>
+    {(!visibleCards || visibleCards.includes('evolution')) && <div style={card}>
       <h3 style={{ color: '#173e32', marginBottom: 6 }}>Evolução das receitas confirmadas</h3>
       <p style={{ color: '#71817b', fontSize: 13, marginBottom: 18 }}>Últimos 6 meses • PIX confirmado e vendas pagas</p>
       <div style={{ display: 'flex', gap: 20, fontSize: 12, marginBottom: 16 }}><span>🟩 Doações PIX</span><span>🟨 Lojinha</span></div>
@@ -54,8 +56,8 @@ export default async function FinanceDashboard({ activeProjects, galleryCount, r
         </div>)}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,minmax(0,1fr))', gap: 12, marginTop: 8 }}>{data.map(d => <span key={d.label} style={{ textAlign: 'center', fontSize: 11, color: '#6b7772' }}>{d.label}</span>)}</div>
-    </div>
-    {!readOnly && <div style={card}><h3 style={{ color: '#173e32', marginBottom: 15 }}>Atividade recente</h3>{recent.rows.length ? recent.rows.map((r: any, i: number) => <div key={i} style={{ padding: '9px 0', borderBottom: '1px solid #edf0ed', fontSize: 13 }}><span style={{ color: '#74817c' }}>{new Date(r.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span> <strong style={{ color: '#244d40', marginLeft: 10 }}>{r.action}</strong></div>) : <p style={{ color: '#74817c' }}>Nenhuma atividade registrada.</p>}</div>}
+    </div>}
+    {!readOnly && <div style={card}><h3 style={{ color: '#173e32', marginBottom: 15 }}>Atividade recente</h3>{recent.rows.length ? recent.rows.map((r: any, i: number) => <div key={i} style={{ padding: '9px 0', borderBottom: '1px solid #edf0ed', fontSize: 13 }}><span style={{ color: '#74817c' }}>{new Date(r.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span> <strong style={{ color: '#244d40', marginLeft: 10 }}>{r.action}</strong> <span>{r.email || 'Conta removida'} ({r.role || '—'})</span> <span style={{color:'#74817c'}}>{r.details && Object.keys(r.details).length ? JSON.stringify(r.details).slice(0,180) : ''}</span></div>) : <p style={{ color: '#74817c' }}>Nenhuma atividade registrada.</p>}</div>}
     <p style={{ color: '#75847e', fontSize: 12 }}>Atenção: a receita representa registros marcados como confirmados/pagos no banco, não conciliação bancária automática. Confira os recebimentos com o extrato financeiro.</p>
   </section>;
 }
