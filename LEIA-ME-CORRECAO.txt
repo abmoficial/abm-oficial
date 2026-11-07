@@ -1,0 +1,22 @@
+CORREÇÃO - Associação Manancial
+
+O QUE ESTAVA ERRADO
+1. Você colou duas linhas juntas e o nome do banco virou
+   "assossiacaomanancialnode scripts/migrate-shop.mjs". O "set" ficou ativo no terminal,
+   sobrescreveu o .env e quebrou o login.
+2. Seu banco (backup) NÃO tem as tabelas da loja (shop_products, shop_orders) nem as
+   colunas de cores (color_header, color_footer, color_button, color_button_text).
+   Sem elas a aba "Loja" e o botão Salvar das cores do painel falham.
+3. O ECONNRESET vinha de conexões antigas do pool; lib/db.ts agora trata isso.
+
+COMO APLICAR (CMD, dentro da pasta do projeto)
+1. Ctrl+C no servidor e FECHE o terminal antigo (apaga o "set" errado). Abra um novo.
+2. Substitua os arquivos deste zip na pasta do projeto (lib\db.ts, scripts\*, package.json).
+3. Confirme que o arquivo .env tem a linha (note %40 no lugar do @ da senha):
+   DATABASE_URL=postgresql://postgres:%40SUA_SENHA@localhost:5432/assossiacaomanancial
+4. Rode:   npm run db:migrate
+   (aplica loja + cores + conteúdo; pode rodar de novo sem problema, não apaga dados)
+5. Rode:   npm run dev -- -H 0.0.0.0
+
+NÃO precisa mais usar "set DATABASE_URL=...". Os scripts leem o .env sozinhos.
+Troque a senha do Postgres depois: ela apareceu em texto no chat.

@@ -1,0 +1,21 @@
+CORREÇÃO DA CHAVE PIX
+=====================
+
+1. Confirme no aplicativo do banco recebedor que +5562982588059 está cadastrado
+   como chave PIX ativa da conta da Associação Manancial. O sistema não consegue
+   criar nem validar uma chave que não esteja registrada no banco.
+2. No .env do servidor, configure:
+   PIX_KEY=+5562982588059
+   PIX_RECEIVER_NAME=ASSOCIACAO MANANCIAL
+   PIX_RECEIVER_CITY=GOIANIA
+   PIX_KEY_TYPE=PHONE
+3. Pare o servidor (Ctrl+C) e inicie novamente com npm run dev.
+   O Next.js lê as variáveis de ambiente na inicialização.
+4. Crie um pedido NOVO. QR Codes de pedidos antigos não são atualizados.
+5. Leia o novo QR com o app do banco e confira se o destinatário é a Associação
+   Manancial antes de pagar.
+
+A rotina também normaliza uma chave telefônica brasileira de 11 dígitos
+(629XXXXXXXX) para +55629XXXXXXXX ao montar o BR Code.
+A normalização não prova que a chave pertence à associação: essa confirmação
+deve ser feita no banco.
