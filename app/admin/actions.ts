@@ -440,7 +440,9 @@ export async function confirmPixDonation(fd: FormData) {
     await client.query('BEGIN');
     const updated = await client.query(
       `UPDATE contributions SET status='confirmed', confirmed_at=now()
-       WHERE id=$1 AND status='awaiting_manual_verification' RETURNING id, amount_cents, pix_txid`,
+       WHERE id=$1 AND status='awaiting_manual_verification'
+         AND payment_provider='static_pix'
+       RETURNING id, amount_cents, pix_txid`,
       [id]
     );
     if (!updated.rowCount) throw Error('Doação não encontrada ou já processada');
